@@ -1,0 +1,23 @@
+{
+  "name": "signalk-fixedstation",
+  "version": "0.0.1",
+  "description": "SignalK plugin to provide fixed navigation data",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/inspired-technologies/signalk-fixedstation-plugin.git"
+  },
+  "keywords": [
+    "signalk",
+    "signalk-node-server-plugin"
+  ],
+  "author": "Inspired Technologies",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/inspired-technologies/signalk-fixedstation-plugin/issues"
+  },
+  "homepage": "https://github.com/inspired-technologies/signalk-fixedstation-plugin#readme"
+}
