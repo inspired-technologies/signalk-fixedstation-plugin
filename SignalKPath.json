@@ -1,0 +1,58 @@
+{ "navigation":
+{
+    "position":
+    {
+        "meta":
+        {
+            "description":"Fixed position in 2 or 3 dimensions (WGS84 datum)",
+            "properties":
+            {
+                "longitude":
+                {
+                    "type":"number",
+                    "description":"Longitude",
+                    "units":"deg",
+                    "example":4.98765245
+                },
+                "latitude":
+                {
+                    "type":"number",
+                    "description":"Latitude",
+                    "units":"deg",
+                    "example":52.0987654
+                },
+                "altitude":
+                {
+                    "type":"number",
+                    "description":"Altitude",
+                    "units":"m"
+                    }
+            }
+        },
+        "value":
+        {
+            "longitude":24.7313641,
+            "latitude":59.7158565,
+            "altitude":-0.11 
+        },
+        "$source":"n2k-sample-data.160",
+        "timestamp":"2014-08-15T19:05:06.675Z",
+        "pgn":129029
+    },
+    "gnss": 
+    {
+        "antennaAltitude":
+        {
+            "meta":
+            {
+                "units":"m",
+                "description":"Altitude of antenna"
+            },
+            "value":-0.11,
+            "$source":"n2k-sample-data.160",
+            "timestamp":"2014-08-15T19:01:49.651Z",
+            "pgn":129029
+        }
+    }
+}
+}
