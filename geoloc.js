@@ -3,6 +3,7 @@ var geoip = require('fast-geoip');
 const navigationPosition = 'navigation.position';
 const navigationElevation = 'navigation.gnss.antennaAltitude';
 let deltahandler = null;
+let log = null;
 
 const latest = {
     position: {
@@ -47,8 +48,10 @@ function getpublicip (callback) {
     
     require('external-ip')()(function(err, ip) {
         if (!err) {
+            log("Identified IP "+ip)
             callback(ip);
         } else {
+            log("Cannot get IP: "+err)
             callback(err);
         }
     })
@@ -66,9 +69,15 @@ async function getgeodata(ip) {
 async function preparePosition(ip) {
     let update = []
     if (ip!==null)
+    {
         var geo = await getgeodata(ip)
+        log("Geo data: "+geo.ll)
+    }
     else
-        geo = null    
+    {
+        geo = null;
+        log("No geo data")
+    }
     if (extractPosition(geo))
         update.push(buildDelta(navigationPosition, formatPosition()))
     deltahandler(update);
@@ -166,6 +175,11 @@ module.exports = {
     getgeodata,
     getelevation,
 
+    init: function(loghandler, messagehandler) {
+        log = loghandler
+        deltahandler = messagehandler
+    },
+
     // clear all data
     clearAll: function () {
         latest.position.lat = null;
@@ -175,10 +189,9 @@ module.exports = {
     
     // @param {bool} value calculate from external IP.
     // @returns {Array<[{path:path, value:value}]>} Delta JSON-array of updates
-    onLoad: function(lat, lon, elev, calc, messagehandler) {
+    onLoad: function(lat, lon, elev, calc) {
         if (calc) // throw new Error("Cannot add null value");
         {
-            deltahandler = messagehandler
             getpublicip(preparePosition);
             getelevation(lat, lon, elev, prepareAltitude);
         }

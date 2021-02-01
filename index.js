@@ -1,5 +1,4 @@
 'use strict'
-const debug = require("debug")("signalk:signalk-fixedstation")
 var geoloc = require('./geoloc')
 
 module.exports = function (app) {
@@ -10,9 +9,11 @@ module.exports = function (app) {
     plugin.description = 'Provide fixed navigation data (position, altitude)';
 
     var unsubscribes = [ geoloc.clearAll ];
+
     plugin.start = function (options, restartPlugin) {
-        app.debug('Plugin starting ...');        
-        let delta = geoloc.onLoad(options["latitude"], options["longitude"], options["elevation"], options["dynamic"], sendDelta);
+        app.debug('Plugin starting ...');
+        geoloc.init(log, sendDelta);
+        let delta = geoloc.onLoad(options["latitude"], options["longitude"], options["elevation"], options["dynamic"]);
         app.debug('Plugin started.');
         if (delta!==undefined && delta.length>0)
             sendDelta(delta);
@@ -66,6 +67,8 @@ module.exports = function (app) {
             ]   
         })
     }
+
+    function log(msg) { app.debug(msg); }
 
     return plugin;
 };
