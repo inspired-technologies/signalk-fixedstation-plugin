@@ -15,8 +15,11 @@ module.exports = function (app) {
         geoloc.init(log, sendDelta);
         let delta = geoloc.onLoad(options["latitude"], options["longitude"], options["elevation"], options["dynamic"]);
         app.debug('Plugin started.');
-        if (delta!==undefined && delta.length>0)
-            sendDelta(delta);
+        if (delta!==undefined && delta.update.length>0) {
+            sendDelta(delta.update);
+            if (delta.meta && delta.meta.length>0)
+              sendMeta(delta.meta);        
+        }
     };
 
     plugin.stop = function () {
@@ -66,6 +69,16 @@ module.exports = function (app) {
                 }
             ]   
         })
+    }
+
+    function sendMeta(units) {
+      app.handleMessage('signalk-fixedstation', {
+          updates: [
+              {
+                  meta: units
+              }
+          ]   
+      })
     }
 
     function log(msg) { app.debug(msg); }

@@ -37,11 +37,14 @@ function buildDelta(path, value) {
 
 function prepareFixed() {
     let update = []
+    let meta = []
     if (latest.position.lat!==null && latest.position.lon!==null)
         update.push(buildDelta(navigationPosition, formatPosition()))    
-    if (latest.altitude.elevation!==null)
+    if (latest.altitude.elevation!==null) {
         update.push(buildDelta(navigationElevation, formatAltitude()))
-    return update
+        meta.push(buildDelta(navigationElevation, { "units": "m", "description": "Altitude above sealevel", "pgn":129029 } ))
+    }
+    return { "update": update, "meta": meta }
 }
 
 function getpublicip (callback) {
@@ -124,6 +127,7 @@ async function getelevation(lat, lon, fixed, callback) {
 
 async function prepareAltitude(mapdata) {
     let update = []
+    let meta = []
     if (extractAltitude(mapdata))
     {
         update.push(buildDelta(navigationElevation, formatAltitude()))
