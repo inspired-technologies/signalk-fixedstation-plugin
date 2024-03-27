@@ -2,6 +2,7 @@
 name: Check teams notification
 
 on:
+  push: {}
   release: {}
 
 jobs:
