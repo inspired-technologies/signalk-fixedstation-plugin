@@ -1,5 +1,5 @@
 'use strict'
-var geoloc = require('./geoloc')
+const fs = require('./fixedstation')
 
 module.exports = function (app) {
     var plugin = {};
@@ -8,15 +8,16 @@ module.exports = function (app) {
     plugin.name = 'Fixed Station';
     plugin.description = 'Provide fixed navigation data (position, altitude)';
 
-    var unsubscribes = [ geoloc.clearAll ];
+    var unsubscribes = [ fs.clearAll ];
 
     plugin.start = function (options, restartPlugin) {
         app.debug('Plugin starting ...');
-        geoloc.init(log, sendDelta);
-        let delta = geoloc.onLoad(options["latitude"], options["longitude"], options["elevation"], options["dynamic"]);
+        fs.init(options, log, sendDelta);
+        let delta = fs.onLoad(options["latitude"], options["longitude"], options["elevation"], options["dynamic"]);
         app.debug('Plugin started.');
-        if (delta!==undefined && delta.update.length>0) {
-            sendDelta(delta.update);
+        if (delta) {
+            if (delta.update && delta.update.length>0)
+              sendDelta(delta.update);
             if (delta.meta && delta.meta.length>0)
               sendMeta(delta.meta);        
         }
@@ -53,6 +54,10 @@ module.exports = function (app) {
           elevation: {
             type: 'number',
             title: 'Elevation above sea level. Used to export navigation.gnss.antennaAltitude'
+          },
+          apikey: {
+            type: 'string',
+            title: 'Google Maps API Key. Elevation data for any point in the world.'
           }
         }
     };
