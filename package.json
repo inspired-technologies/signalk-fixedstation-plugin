@@ -1,6 +1,6 @@
 {
   "name": "signalk-fixedstation",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "description": "SignalK plugin to provide fixed navigation data",
   "main": "index.js",
   "scripts": {

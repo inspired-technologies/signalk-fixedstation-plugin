@@ -15,9 +15,9 @@ module.exports = function (app) {
         fs.init(options, log, sendDelta);
         let delta = fs.onLoad(options["latitude"], options["longitude"], options["elevation"], options["dynamic"]);
         app.debug('Plugin started.');
-        if (delta) {
-            if (delta.update && delta.update.length>0)
-              sendDelta(delta.update);
+        
+        if (delta && delta.update && delta.update.length>0) {
+            sendDelta(delta.update);
             if (delta.meta && delta.meta.length>0)
               sendMeta(delta.meta);        
         }

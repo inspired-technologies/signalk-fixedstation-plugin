@@ -61,9 +61,10 @@ function prepareFixed() {
     return { "update": update, "meta": meta }
 }
 
-function prepareMeta() {
+function prepareMeta(alt) {
     let update = []
     let meta = []
+    update.push(buildDelta(navigationElevation, alt && typeof alt==="number" ? alt : 0 ))
     meta.push(buildDelta(navigationElevation, { "units": "m", "description": "Altitude above sealevel", "pgn":129029 } ))
     return { "update": update, "meta": meta }
 }
@@ -85,7 +86,7 @@ async function prepareDynamic (callback) {
             if (e && typeof e==='number')
             {
                 log(`Elevation determined for [${latest.position.lat},${latest.position.lon}] to ${e}m`)
-                onAltitudeUpdated(e)   
+                onAltitudeUpdated(Math.round(e*1000)/1000)
             } else {
                 log(`Failed to determin elevation: ${e}`)
             }
@@ -133,7 +134,7 @@ module.exports = {
         if (calc) // throw new Error("Cannot add null value");
         {
             prepareDynamic();
-            return prepareMeta();
+            return prepareMeta(elev);
         }
         else
         {
