@@ -49,12 +49,16 @@ function buildDelta(path, value) {
     }
 }
 
+function isSet(value) {
+    return typeof value === "number" && !Number.isNaN(value);
+}
+
 function prepareFixed() {
     let update = []
     let meta = []
-    if (latest.position.lat!==null && latest.position.lon!==null)
+    if (isSet(latest.position.lat) && isSet(latest.position.lon))
         update.push(buildDelta(navigationPosition, formatPosition()))    
-    if (latest.altitude.elevation!==null) {
+    if (isSet(latest.altitude.elevation)) {
         update.push(buildDelta(navigationElevation, formatAltitude()))
         meta.push(buildDelta(navigationElevation, { "units": "m", "description": "Altitude above sealevel", "pgn":129029 } ))
     }
@@ -101,7 +105,7 @@ function formatPosition()
         "latitude": latest.position.lat,
         "longitude": latest.position.lon,
     } 
-    if (latest.altitude.elevation!==null)
+    if (isSet(latest.altitude.elevation))
         value.altitude = latest.altitude.elevation
 
     return value;
