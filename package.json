@@ -4,8 +4,8 @@
   "description": "SignalK plugin to provide fixed navigation data",
   "main": "index.js",
   "scripts": {
-    "test": "node --test",
-    "debug": "node --inspect-brk=192.168.0.97:9229 /usr/local/lib/node_modules/signalk-server/bin/signalk-server"
+    "test": "node --test test/*.test.js",
+    "debug": "node --inspect-brk=192.168.0.97:9229 /usr/lib/node_modules/signalk-server/bin/signalk-server -c /home/pi/signalk"
   },
   "repository": {
     "type": "git",
@@ -22,6 +22,18 @@
     "url": "https://github.com/inspired-technologies/signalk-fixedstation-plugin/issues"
   },
   "homepage": "https://github.com/inspired-technologies/signalk-fixedstation-plugin#readme",
+  "files": [
+    "index.js",
+    "fixedstation.js",
+    "geoloc.js",
+    "CHANGELOG.md"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "signalk": {
+    "displayName": "Fixed Station"
+  },
   "dependencies": {
     "@googlemaps/google-maps-services-js": "^3.4.2",
     "debug": "^4.4.3",
