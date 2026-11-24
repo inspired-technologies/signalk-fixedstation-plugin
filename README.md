@@ -25,10 +25,15 @@ The plugin ships with baseline and lifecycle tests based on the built-in
 
 ```sh
 npm install
-npm test        # or: node --test
+npm test
 ```
 
 - [`test/baseline.test.js`](./test/baseline.test.js) verifies the plugin interface, the configuration
   schema and the deltas published for a statically configured position and elevation.
 - [`test/lifecycle.test.js`](./test/lifecycle.test.js) runs the full dynamic lifecycle — start, IP based
   position lookup, elevation lookup, stop — against a stubbed geolocation module.
+
+***
+
+## Release Notes
+See [Changelog](CHANGELOG.md).
