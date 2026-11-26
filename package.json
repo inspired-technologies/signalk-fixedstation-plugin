@@ -27,13 +27,15 @@
     "fixedstation.js",
     "geoloc.js",
     "elevation.js",
+    "img/logo.png",
     "CHANGELOG.md"
   ],
   "engines": {
     "node": ">=20"
   },
   "signalk": {
-    "displayName": "Fixed Station"
+    "displayName": "Fixed Station",
+    "appIcon": "./img/logo.png"
   },
   "dependencies": {
     "debug": "^4.4.3",
