@@ -26,6 +26,7 @@
     "index.js",
     "fixedstation.js",
     "geoloc.js",
+    "elevation.js",
     "CHANGELOG.md"
   ],
   "engines": {
@@ -35,7 +36,6 @@
     "displayName": "Fixed Station"
   },
   "dependencies": {
-    "@googlemaps/google-maps-services-js": "^3.4.2",
     "debug": "^4.4.3",
     "geoip-lite": "^2.0.3",
     "public-ip": "^8.0.0"

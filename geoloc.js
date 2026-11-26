@@ -1,90 +1,29 @@
-const geoip = require('geoip-lite')
+'use strict'
+/*
+    Position from the public IP address.
+    - public IP: `public-ip` (DNS OpenDNS / Google, HTTPS fallback icanhazip / ipify)
+    - location: MaxMind GeoLite data bundled with `geoip-lite`, looked up locally - no online geolocation service.
+      geoip-lite reads its data files into memory when required, hence it is loaded only when a position is determined.
+*/
 
-let maps_api_key
+let geoip = null
 
-function init(config)
-{
-    maps_api_key = config.apikey
+// @returns {Promise<string>} public IP address, rejects if it cannot be determined (eg. no internet)
+async function getIP(version = 'v4') {
+    const { publicIpv4, publicIpv6 } = await import('public-ip')
+    if (version === 'v6')
+        return publicIpv6({ fallbackUrls: ['https://ifconfig.co/ip'] })
+    return publicIpv4()
 }
 
-async function getIP(version)
-{  
-    let result
-    if (!version || version==='v4')
-    {
-        const { publicIpv4 } = await import('public-ip')
-        await publicIpv4()
-        .then((res) => {
-            result = res
-        })
-    }
-    else if (version==='v6')
-    {
-        const { publicIpv6 } = await import('public-ip')
-        await publicIpv6({
-            fallbackUrls: [
-                'https://ifconfig.co/ip'
-            ]
-        }).then((res) => {
-            result = res
-        })    
-    }
-    else
-        return undefined
-    return result
-}
-
-function getGeo(ip)
-{
+// @returns {{ ll: [number, number] } | null} geoip-lite record of the IP address
+function getGeo(ip) {
+    if (!geoip)
+        geoip = require('geoip-lite')
     return geoip.lookup(ip)
 }
 
-function getElevation (lat, lon) {
-
-    const { Client } = require("@googlemaps/google-maps-services-js");
-    const client = new Client({});
-
-    client
-    .elevation({
-        params: {
-            locations: [{ lat: lat, lng: lon }],
-            key: config.google.maps.key,
-        },
-        timeout: 1000, // milliseconds
-    })
-    .then((r) => {
-        return r.data.results[0].elevation;
-    })
-    .catch((e) => {
-        return e.response.data.error_message;
-    });
-}
-
-async function callElevation (lat, lon, callback) {
-
-    const { Client } = require("@googlemaps/google-maps-services-js");
-    const client = new Client({});
-
-    client
-    .elevation({
-        params: {
-            locations: [{ lat: lat, lng: lon }],
-            key: maps_api_key,
-        },
-        timeout: 1000, // milliseconds
-    })
-    .then((r) => {
-        callback(r.data.results[0].elevation);
-    })
-    .catch((e) => {
-        callback(e.response.data.error_message);
-    });
-}
-
-module.exports = { 
-    init,
+module.exports = {
     getIP,
-    getGeo,
-    getElevation,
-    callElevation
-};
+    getGeo
+}
