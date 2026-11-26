@@ -11,6 +11,7 @@ Releases up to 0.6.0 are not documented here. 0.7.0 was an interim version on `d
 - Determined position and elevation are kept in the plugin data directory and published right away at the next start, also without internet; the elevation is looked up again only once the position or the provider changed.
 - Failed lookups are retried after 1 minute, doubling up to 1 hour - they were tried once per start.
 - With a `timeout` in the meta data of `navigation.position` or `navigation.gnss.antennaAltitude` the values are re-published at half of the timeout, so that they don't expire.
+- Plugin logo, shown in the App Store of the SignalK server (`signalk.appIcon`).
 
 ### Fix
 - No public IP address (eg. no internet at boot) no longer causes an unhandled promise rejection, and the elevation is no longer looked up for an empty position.
