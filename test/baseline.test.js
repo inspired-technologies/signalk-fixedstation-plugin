@@ -1,142 +1,159 @@
-const { describe, it } = require('node:test');
+'use strict';
+
+const { describe, it, beforeEach, afterEach } = require('node:test');
 const assert = require('node:assert/strict');
 
 const pluginFactory = require('../index');
+const station = require('../fixedstation');
+const { createApp, values, meta, latest, waitFor, sleep, stubFetch } = require('./helpers/signalk-app');
 
-// Minimal stand-in for the SignalK server app object. Every member used by
-// index.js has to be present, otherwise the plugin fails at startup.
-function createApp() {
-  const app = {
-    deltas: [],
-    debug: () => {},
-    error: (msg) => app.errors.push(msg),
-    errors: [],
-    handleMessage: (id, message) => app.deltas.push({ id, message }),
-  };
-  return app;
-}
+const POSITION = 'navigation.position';
+const ALTITUDE = 'navigation.gnss.antennaAltitude';
 
-function values(app) {
-  return app.deltas
-    .filter((d) => d.message.updates[0].values)
-    .flatMap((d) => d.message.updates[0].values);
-}
-
-function meta(app) {
-  return app.deltas
-    .filter((d) => d.message.updates[0].meta)
-    .flatMap((d) => d.message.updates[0].meta);
-}
-
+// Static configurations - no lookups of the position, network requests are stubbed.
 describe('plugin', () => {
-  it('has required interface', () => {
-    const plugin = pluginFactory(createApp());
-    assert.equal(typeof plugin.start, 'function');
-    assert.equal(typeof plugin.stop, 'function');
-    assert.equal(plugin.id, 'signalk-fixedstation');
-    assert.ok(plugin.name);
-    assert.ok(plugin.description);
-    assert.ok(plugin.schema);
+  let fetch;
+  let plugin;
+
+  beforeEach(() => {
+    fetch = stubFetch(() => assert.fail('no elevation lookup expected'));
   });
 
-  it('exposes a configuration schema for position, elevation and lookups', () => {
-    const plugin = pluginFactory(createApp());
-    const properties = plugin.schema.properties;
+  afterEach(() => {
+    if (plugin) plugin.stop();
+    plugin = null;
+    fetch.restore();
+  });
 
-    assert.equal(plugin.schema.type, 'object');
+  function start(options, app = createApp()) {
+    plugin = pluginFactory(app);
+    plugin.start(options, () => {});
+    return app;
+  }
+
+  it('has required interface', () => {
+    const p = pluginFactory(createApp());
+    assert.equal(typeof p.start, 'function');
+    assert.equal(typeof p.stop, 'function');
+    assert.equal(p.id, 'signalk-fixedstation');
+    assert.ok(p.name);
+    assert.ok(p.description);
+    assert.ok(p.schema);
+  });
+
+  it('exposes a configuration schema for position, elevation and the elevation provider', () => {
+    const { properties, required } = pluginFactory(createApp()).schema;
+
+    assert.equal(required, undefined);
     assert.deepEqual(Object.keys(properties).sort(), [
-      'apikey',
-      'dynamic',
-      'elevation',
-      'latitude',
-      'longitude',
+      'apikey', 'dynamic', 'elevation', 'elevationProvider', 'latitude', 'longitude',
     ]);
     assert.equal(properties.latitude.type, 'number');
     assert.equal(properties.longitude.type, 'number');
     assert.equal(properties.elevation.type, 'number');
-    assert.equal(properties.dynamic.type, 'boolean');
     assert.equal(properties.dynamic.default, false);
+    assert.deepEqual(properties.elevationProvider.enum, ['open-meteo', 'google', 'none']);
+    assert.equal(properties.elevationProvider.enumNames.length, 3);
+    assert.equal(properties.elevationProvider.default, 'open-meteo');
     assert.equal(properties.apikey.type, 'string');
   });
 
-  it('publishes the configured position, elevation and meta on start', (t) => {
-    const app = createApp();
-    const plugin = pluginFactory(app);
-    t.after(() => plugin.stop());
-
-    plugin.start({ latitude: 52.5, longitude: 13.4, elevation: 34.5, dynamic: false }, () => {});
+  it('publishes the configured position, elevation and meta and shows them on the status', () => {
+    const app = start({ latitude: 52.5, longitude: 13.4, elevation: 34.5, elevationProvider: 'open-meteo' });
 
     assert.deepEqual(app.errors, []);
-    assert.deepEqual(app.deltas.map((d) => d.id), Array(app.deltas.length).fill('signalk-fixedstation'));
-
-    const published = values(app);
-    const position = published.filter((v) => v.path === 'navigation.position');
-    const altitude = published.filter((v) => v.path === 'navigation.gnss.antennaAltitude');
-
-    assert.ok(position.length > 0);
-    assert.ok(altitude.length > 0);
-    assert.equal(position.at(-1).value.latitude, 52.5);
-    assert.equal(position.at(-1).value.longitude, 13.4);
-    // once the elevation is known it is carried along in the position value
-    assert.equal(position.at(-1).value.altitude, 34.5);
-    assert.equal(altitude.at(-1).value, 34.5);
-
-    const units = meta(app);
-    assert.equal(units.length, 1);
-    assert.equal(units[0].path, 'navigation.gnss.antennaAltitude');
-    assert.deepEqual(units[0].value, {
-      units: 'm',
-      description: 'Altitude above sealevel',
-      pgn: 129029,
-    });
+    assert.ok(app.deltas.every((d) => d.id === 'signalk-fixedstation'));
+    assert.deepEqual(latest(app, POSITION).value, { latitude: 52.5, longitude: 13.4, altitude: 34.5 });
+    assert.equal(latest(app, ALTITUDE).value, 34.5);
+    assert.deepEqual(meta(app), [
+      { path: ALTITUDE, value: { units: 'm', description: 'Altitude above sea level' } },
+    ]);
+    assert.equal(app.statuses.at(-1), 'Position 52.5000° N, 13.4000° E (configured) · elevation 34.5 m (configured)');
+    assert.equal(fetch.requests.length, 0);
   });
 
-  it('publishes a position without altitude when no elevation is configured', (t) => {
-    const app = createApp();
-    const plugin = pluginFactory(app);
-    t.after(() => plugin.stop());
+  it('publishes a position without altitude when no elevation is configured and the provider is none', () => {
+    const app = start({ latitude: -33.86, longitude: -151.21, elevationProvider: 'none' });
 
-    plugin.start({ latitude: -33.86, longitude: 151.21, dynamic: false }, () => {});
-
-    const position = values(app).find((v) => v.path === 'navigation.position');
-    assert.ok(position);
-    assert.equal(position.value.latitude, -33.86);
-    assert.equal(position.value.longitude, 151.21);
-    assert.equal(Object.hasOwn(position.value, 'altitude'), false);
+    assert.deepEqual(values(app), [{ path: POSITION, value: { latitude: -33.86, longitude: -151.21 } }]);
+    assert.deepEqual(meta(app), []);
+    assert.equal(app.statuses.at(-1), 'Position 33.8600° S, 151.2100° W (configured)');
   });
 
-  it('publishes nothing when neither position nor elevation is configured', (t) => {
-    const app = createApp();
-    const plugin = pluginFactory(app);
-    t.after(() => plugin.stop());
+  it('accepts a position on the equator and the prime meridian', () => {
+    const app = start({ latitude: 0, longitude: 0, elevation: 0, elevationProvider: 'none' });
 
-    plugin.start({ dynamic: false }, () => {});
+    assert.deepEqual(latest(app, POSITION).value, { latitude: 0, longitude: 0, altitude: 0 });
+    assert.equal(latest(app, ALTITUDE).value, 0);
+  });
+
+  it('publishes nothing when neither position nor elevation is configured', () => {
+    const app = start({ elevationProvider: 'open-meteo' });
 
     assert.deepEqual(values(app), []);
     assert.deepEqual(meta(app), []);
     assert.deepEqual(app.errors, []);
+    assert.equal(app.statuses.at(-1), 'No position configured');
   });
 
-  it('publishes only the elevation when no position is configured', (t) => {
-    const app = createApp();
-    const plugin = pluginFactory(app);
-    t.after(() => plugin.stop());
+  it('publishes only the elevation when no position is configured', () => {
+    const app = start({ elevation: 12, elevationProvider: 'open-meteo' });
 
-    plugin.start({ elevation: 12, dynamic: false }, () => {});
-
-    const published = values(app);
-    assert.ok(published.length > 0);
-    assert.ok(published.every((v) => v.path === 'navigation.gnss.antennaAltitude'));
-    assert.ok(published.every((v) => v.value === 12));
+    assert.deepEqual(values(app), [{ path: ALTITUDE, value: 12 }]);
     assert.equal(meta(app).length, 1);
     assert.deepEqual(app.errors, []);
   });
 
-  it('starts and stops without error', () => {
-    const app = createApp();
-    const plugin = pluginFactory(app);
+  it('looks up the elevation of a configured position without elevation from Open-Meteo', async () => {
+    fetch.restore();
+    fetch = stubFetch(() => ({ body: { elevation: [38.0] } }));
+    const app = start({ latitude: 52.52, longitude: 13.41, elevationProvider: 'open-meteo' });
 
-    plugin.start({ latitude: 52.5, longitude: 13.4, elevation: 34.5 }, () => {});
+    // the position is published right away, the elevation once it is known
+    assert.deepEqual(values(app)[0], { path: POSITION, value: { latitude: 52.52, longitude: 13.41 } });
+    await waitFor(() => latest(app, ALTITUDE), 'the elevation');
+
+    const [request] = fetch.requests;
+    assert.equal(request.origin, 'https://api.open-meteo.com');
+    assert.equal(request.pathname, '/v1/elevation');
+    assert.equal(request.searchParams.get('latitude'), '52.52');
+    assert.equal(request.searchParams.get('longitude'), '13.41');
+    assert.equal(request.searchParams.has('apikey'), false);
+    assert.deepEqual(latest(app, POSITION).value, { latitude: 52.52, longitude: 13.41, altitude: 38 });
+    assert.equal(app.statuses.at(-1), 'Position 52.5200° N, 13.4100° E (configured) · elevation 38 m (Open-Meteo)');
+  });
+
+  it('keeps the looked up elevation for the next start instead of looking it up again', async () => {
+    fetch.restore();
+    fetch = stubFetch(() => ({ body: { elevation: [38.0] } }));
+    const options = { latitude: 52.52, longitude: 13.41, elevationProvider: 'open-meteo' };
+    const app = start(options);
+    await waitFor(() => latest(app, ALTITUDE), 'the elevation');
+    plugin.stop();
+
+    const restarted = start(options, createApp({ dataDir: app.dataDir }));
+    await sleep(50);
+
+    assert.equal(fetch.requests.length, 1);
+    assert.equal(latest(restarted, ALTITUDE).value, 38);
+    assert.equal(restarted.statuses.at(-1), 'Position 52.5200° N, 13.4100° E (configured) · elevation 38 m (Open-Meteo, cached)');
+  });
+
+  it('saves the elevation provider of a configuration without one, Google if it has an API key', () => {
+    const withKey = start({ latitude: 1, longitude: 2, elevation: 3, apikey: 'key' });
+    assert.deepEqual(withKey.savedOptions, [{ latitude: 1, longitude: 2, elevation: 3, apikey: 'key', elevationProvider: 'google' }]);
+    plugin.stop();
+
+    const withoutKey = start({ latitude: 1, longitude: 2, elevation: 3 });
+    assert.equal(withoutKey.savedOptions[0].elevationProvider, 'open-meteo');
+    plugin.stop();
+
+    const saved = start({ latitude: 1, longitude: 2, elevation: 3, elevationProvider: 'none' });
+    assert.deepEqual(saved.savedOptions, []);
+  });
+
+  it('starts and stops without error', () => {
+    const app = start({ latitude: 52.5, longitude: 13.4, elevation: 34.5, elevationProvider: 'none' });
     const published = app.deltas.length;
 
     plugin.stop();
@@ -144,5 +161,23 @@ describe('plugin', () => {
 
     assert.equal(app.deltas.length, published);
     assert.deepEqual(app.errors, []);
+  });
+});
+
+describe('configuration', () => {
+  it('keeps Google for configurations with an API key and no provider', () => {
+    assert.equal(station.normalize({ apikey: ' key ' }).provider, 'google');
+    assert.equal(station.normalize({ apikey: ' key ' }).apikey, 'key');
+    assert.equal(station.normalize({}).provider, 'open-meteo');
+    assert.equal(station.normalize({ apikey: 'key', elevationProvider: 'open-meteo' }).provider, 'open-meteo');
+    assert.equal(station.normalize({ elevationProvider: 'unknown' }).provider, 'open-meteo');
+  });
+
+  it('accepts numbers given as text and ignores empty values', () => {
+    const config = station.normalize({ latitude: '52.5', longitude: '', elevation: 'abc' });
+    assert.equal(config.latitude, 52.5);
+    assert.equal(config.longitude, undefined);
+    assert.equal(config.elevation, undefined);
+    assert.equal(config.dynamic, false);
   });
 });
